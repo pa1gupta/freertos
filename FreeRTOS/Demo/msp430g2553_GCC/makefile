@@ -25,37 +25,32 @@
 # * 1 tab == 4 spaces!
 # */
 
+# Setup paths to source code
+SOURCE_PATH = ../../Source
+PORT_PATH = ../../Source/portable/GCC/MSP430G2553
 
-CC=msp430-gcc
-OBJCOPY=msp430-objcopy
+MSPGCC_BSP430_PATH=/home/pawan/ti/gcc/include
+
+CROSS_COMPILE=msp430-elf-
+CC=$(CROSS_COMPILE)gcc
+OBJCOPY=$(CROSS_COMPILE)objcopy
 DEBUG=-g
 OPT=-Os
 WARNINGS=-Wall -Wshadow -Wpointer-arith -Wbad-function-cast -Wcast-align -Wsign-compare \
 		-Waggregate-return -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wunused
 
-CFLAGS=-mmcu=msp430x449 $(OPT) $(DEBUG) -I. -I../../Source/include -I../Common/include -DGCC_MSP430 $(WARNINGS)
-
-# Setup paths to source code
-SOURCE_PATH = ../../Source
-PORT_PATH = ../../Source/portable/GCC/MSP430F449
-DEMO_PATH = ../Common/Minimal
+CFLAGS=-mmcu=msp430g2553 $(OPT) $(DEBUG) -I. -I../../Source/include -I../Common/include -I$(MSPGCC_BSP430_PATH) -DGCC_MSP430 $(WARNINGS) -L$(MSPGCC_BSP430_PATH)
 
 #
 # Source files that can be built to THUMB mode.
 #
 SRC = \
 main.c \
-ParTest/ParTest.c \
-serial/serial.c \
 $(SOURCE_PATH)/tasks.c \
 $(SOURCE_PATH)/list.c \
 $(SOURCE_PATH)/queue.c \
 $(SOURCE_PATH)/portable/MemMang/heap_1.c \
-$(PORT_PATH)/port.c \
-$(DEMO_PATH)/flash.c \
-$(DEMO_PATH)/integer.c \
-$(DEMO_PATH)/comtest.c \
-$(DEMO_PATH)/PollQ.c
+$(PORT_PATH)/port.c
 
 #
 # Define all object files.
@@ -66,19 +61,7 @@ a.out : $(OBJ) makefile
 	$(CC) $(OBJ) $(CFLAGS)
 
 $(OBJ) : %.o : %.c makefile
-	$(CC) -c $(CFLAGS) $< -o $@	
-	
+	$(CC) -c $(CFLAGS) $< -o $@
+
 clean :
 	touch makefile
-	
-
-
-
-
-
-
-
-
-	
-
-
