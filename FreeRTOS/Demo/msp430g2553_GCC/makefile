@@ -34,7 +34,8 @@ MSPGCC_BSP430_PATH=/home/pawan/ti/gcc/include
 CROSS_COMPILE=msp430-elf-
 CC=$(CROSS_COMPILE)gcc
 OBJCOPY=$(CROSS_COMPILE)objcopy
-DEBUG=-g
+#DEBUG=-g
+DEBUG=
 OPT=-Os
 WARNINGS=-Wall -Wshadow -Wpointer-arith -Wbad-function-cast -Wcast-align -Wsign-compare \
 		-Waggregate-return -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wunused
@@ -65,3 +66,6 @@ $(OBJ) : %.o : %.c makefile
 
 clean :
 	touch makefile
+
+install: a.out
+	mspdebug rf2500 'prog a.out'

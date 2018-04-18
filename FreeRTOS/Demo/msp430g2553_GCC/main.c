@@ -25,32 +25,6 @@
  * 1 tab == 4 spaces!
  */
 
-/*
- * Creates all the demo application tasks, then starts the scheduler.  The WEB
- * documentation provides more details of the demo application tasks.
- * 
- * This demo is configured to execute on the ES449 prototyping board from
- * SoftBaugh. The ES449 has a built in LCD display and a single built in user
- * LED.  Therefore, in place of flashing an LED, the 'flash' and 'check' tasks
- * toggle '*' characters on the LCD.  The left most '*' represents LED 0, the
- * next LED 1, etc.
- *
- * Main. c also creates a task called 'Check'.  This only executes every three 
- * seconds but has the highest priority so is guaranteed to get processor time.  
- * Its main function is to check that all the other tasks are still operational.  
- * Each task that does not flash an LED maintains a unique count that is 
- * incremented each time the task successfully completes its function.  Should 
- * any error occur within such a task the count is permanently halted.  The 
- * 'check' task inspects the count of each task to ensure it has changed since
- * the last time the check task executed.  If all the count variables have 
- * changed all the tasks are still executing error free, and the check task
- * toggles an LED with a three second period.  Should any task contain an error 
- * at any time the LED toggle rate will increase to 500ms.
- *
- * Please read the documentation for the MSP430 port available on
- * http://www.FreeRTOS.org.
- */
-
 /* Standard includes. */
 #include <stdlib.h>
 #include <signal.h>
@@ -58,15 +32,17 @@
 /* Scheduler includes. */
 #include "FreeRTOS.h"
 #include "task.h"
+//#include "queue.h"
 
 /* Demo application includes. */
 
 /* Constants required for hardware setup. */
-#define mainALL_BITS_OUTPUT		( ( unsigned char ) 0xff )
 #define mainMAX_FREQUENCY		( ( unsigned char ) 121 )
 
 /* Demo task priorities. */
 #define mainLED_TASK_PRIORITY			( tskIDLE_PRIORITY + 1 )
+
+#define mainQUEUE_LENGTH	( 1 )
 
 /*
  * Perform the hardware setup required by the ES449 in order to run the demo
@@ -77,6 +53,54 @@ static void prvSetupHardware( void );
 /* Used to detect the idle hook function stalling. */
 static volatile unsigned long ulIdleLoops = 0UL;
 
+/* The queue used by both tasks. */
+//static QueueHandle_t xQueue = NULL;
+
+void flash_led_fast(void);
+void flash_led_fast(void)
+{
+int j;
+	for(j=0; j<50;j++) {
+		volatile unsigned int i;	// volatile to prevent optimization
+
+		P1OUT ^= 0x40;				// Toggle P1.0 using exclusive-OR
+
+		i = 7000;					// SW Delay
+		do i--;
+		while(i != 0);
+	}
+}
+
+static void prvTxTask( void *pvParameters )
+{
+BaseType_t flip_led = 0;
+TickType_t xLastWakeTime;
+
+	xLastWakeTime = xTaskGetTickCount();
+
+	for (;;) {
+		//vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(200));
+		vTaskDelay(10);
+		P1OUT ^= 0x40;
+		//xQueueSend( xQueue, &flip_led, 0U );
+		//flip_led = !flip_led;
+	}
+}
+
+static void prvRxTask( void *pvParameters )
+{
+BaseType_t received=0;
+
+	for (;;) {
+		/* Wait until something arrives in the queue - this task will block
+		indefinitely provided INCLUDE_vTaskSuspend is set to 1 in
+		FreeRTOSConfig.h. */
+		//xQueueReceive( xQueue, &received, portMAX_DELAY );
+		vTaskDelay(10);
+		P1OUT ^= 0x01;
+	}
+}
+
 /*-----------------------------------------------------------*/
 
 /*
@@ -86,57 +110,59 @@ int main( void )
 {
 	/* Setup the hardware ready for the demo. */
 	prvSetupHardware();
+	flash_led_fast();
 
-	/* Start the standard demo application tasks. */
-
-	/* Start the 'Check' task which is defined in this file. */
+	/* Create the standard demo application tasks. */
+	xTaskCreate(prvTxTask,
+		    "",
+		    configMINIMAL_STACK_SIZE,
+		    NULL,
+		    mainLED_TASK_PRIORITY,
+		    NULL);
+#if 0
+	xTaskCreate(prvRxTask,
+		    "",
+		    configMINIMAL_STACK_SIZE,
+		    NULL,
+		    mainLED_TASK_PRIORITY,
+		    NULL);
+#endif
+	/* Create the queue. */
+	//xQueue = xQueueCreate(mainQUEUE_LENGTH, sizeof(BaseType_t));
+//	if (!xQueue)
+//		return -1;
 
 	/* Start the scheduler. */
 	vTaskStartScheduler();
 
 	/* As the scheduler has been started the demo applications tasks will be
 	executing and we should never get here! */
+	//flash_led_fast();
 	return 0;
 }
 /*-----------------------------------------------------------*/
 
 static void prvSetupHardware( void )
 {
-#if 0
 	/* Stop the watchdog. */
 	WDTCTL = WDTPW + WDTHOLD;
+	BCSCTL3 |= LFXT1S_2;
 
-	/* Setup DCO+ for ( xtal * D * (N + 1) ) operation. */
-	FLL_CTL0 |= DCOPLUS + XCAP18PF; 
-
-	/* X2 DCO frequency, 8MHz nominal DCO */
-	SCFI0 |= FN_4;                  
-
-	/* (121+1) x 32768 x 2 = 7.99 Mhz */
-	SCFQCTL = mainMAX_FREQUENCY;
-
-	/* Setup the IO as per the SoftBaugh demo for the same target hardware. */
-	P1SEL = 0x32;
-	P2SEL = 0x00;
-	P3SEL = 0x00;
-	P4SEL = 0xFC;
-	P5SEL = 0xFF;
-#endif
+	/* Set LED pin P1.0 to output direction */
+	P1DIR |= 0x41;
+	P1OUT |= 0x1;
 }
 /*-----------------------------------------------------------*/
 
 void vApplicationIdleHook( void );
 void vApplicationIdleHook( void )
 {
+static short count;
+//BaseType_t received=0;
 	/* Simple put the CPU into lowpower mode. */
 	//_BIS_SR( LPM3_bits );
+	//xQueueReceive( xQueue, &received, portMAX_DELAY );
+
 	ulIdleLoops++;
 }
 /*-----------------------------------------------------------*/
-
-
-
-
-
-
-

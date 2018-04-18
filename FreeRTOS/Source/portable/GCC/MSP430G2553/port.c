@@ -39,7 +39,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-#define interrupt(x) void __attribute__((interrupt (x)))
+#define interrupt(x) void __attribute__((interrupt (x))) //FIXME
 
 /*-----------------------------------------------------------
  * Implementation of functions defined in portable.h for the MSP430 port.
@@ -47,7 +47,7 @@
 
 /* Constants required for hardware setup.  The tick ISR runs off the ACLK, 
 not the MCLK. */
-#define portACLK_FREQUENCY_HZ			( ( TickType_t ) 32768 )
+#define portACLK_FREQUENCY_HZ			( ( TickType_t ) 10000 )
 #define portINITIAL_CRITICAL_NESTING	( ( uint16_t ) 10 )
 #define portFLAGS_INT_ENABLED	( ( StackType_t ) 0x08 )
 
@@ -109,24 +109,24 @@ volatile uint16_t usCriticalNesting = portINITIAL_CRITICAL_NESTING;
  */
 #define portRESTORE_CONTEXT()								\
 	asm volatile (	"mov.w	pxCurrentTCB, r12		\n\t"	\
-					"mov.w	@r12, r1				\n\t"	\
-					"pop	r15						\n\t"	\
-					"mov.w	r15, usCriticalNesting	\n\t"	\
-					"pop	r15						\n\t"	\
-					"pop	r14						\n\t"	\
-					"pop	r13						\n\t"	\
-					"pop	r12						\n\t"	\
-					"pop	r11						\n\t"	\
-					"pop	r10						\n\t"	\
-					"pop	r9						\n\t"	\
-					"pop	r8						\n\t"	\
-					"pop	r7						\n\t"	\
-					"pop	r6						\n\t"	\
-					"pop	r5						\n\t"	\
-					"pop	r4						\n\t"	\
-					"bic	#(0xf0),0(r1)			\n\t"	\
-					"reti							\n\t"	\
-				);
+			"mov.w	@r12, r1			\n\t"	\
+			"pop	r15				\n\t"	\
+			"mov.w	r15, usCriticalNesting		\n\t"	\
+			"pop	r15				\n\t"	\
+			"pop	r14				\n\t"	\
+			"pop	r13				\n\t"	\
+			"pop	r12				\n\t"	\
+			"pop	r11				\n\t"	\
+			"pop	r10				\n\t"	\
+			"pop	r9				\n\t"	\
+			"pop	r8				\n\t"	\
+			"pop	r7				\n\t"	\
+			"pop	r6				\n\t"	\
+			"pop	r5				\n\t"	\
+			"pop	r4				\n\t"	\
+			"bic	#(0xf0),0(r1)			\n\t"	\
+			"reti					\n\t"	\
+		     );
 /*-----------------------------------------------------------*/
 
 /*
@@ -325,6 +325,3 @@ static void prvSetupTimerInterrupt( void )
 		xTaskIncrementTick();
 	}
 #endif
-
-
-	
