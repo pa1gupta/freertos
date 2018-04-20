@@ -49,9 +49,9 @@ SRC = \
 main.c \
 $(SOURCE_PATH)/tasks.c \
 $(SOURCE_PATH)/list.c \
-$(SOURCE_PATH)/queue.c \
-$(SOURCE_PATH)/portable/MemMang/heap_1.c \
 $(PORT_PATH)/port.c
+#$(SOURCE_PATH)/portable/MemMang/heap_1.c \
+$(SOURCE_PATH)/queue.c \
 
 #
 # Define all object files.

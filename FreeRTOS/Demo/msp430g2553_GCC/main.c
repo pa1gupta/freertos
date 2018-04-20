@@ -36,9 +36,6 @@
 
 /* Demo application includes. */
 
-/* Constants required for hardware setup. */
-#define mainMAX_FREQUENCY		( ( unsigned char ) 121 )
-
 /* Demo task priorities. */
 #define mainLED_TASK_PRIORITY			( tskIDLE_PRIORITY + 1 )
 
@@ -51,7 +48,7 @@
 static void prvSetupHardware( void );
 
 /* Used to detect the idle hook function stalling. */
-static volatile unsigned long ulIdleLoops = 0UL;
+//static volatile unsigned long ulIdleLoops = 0UL;
 
 /* The queue used by both tasks. */
 //static QueueHandle_t xQueue = NULL;
@@ -60,7 +57,7 @@ void flash_led_fast(void);
 void flash_led_fast(void)
 {
 int j;
-	for(j=0; j<50;j++) {
+	for(j=0; j<20;j++) {
 		volatile unsigned int i;	// volatile to prevent optimization
 
 		P1OUT ^= 0x40;				// Toggle P1.0 using exclusive-OR
@@ -73,14 +70,14 @@ int j;
 
 static void prvTxTask( void *pvParameters )
 {
-BaseType_t flip_led = 0;
-TickType_t xLastWakeTime;
+//BaseType_t flip_led = 0;
+//TickType_t xLastWakeTime;
 
-	xLastWakeTime = xTaskGetTickCount();
+//	xLastWakeTime = xTaskGetTickCount();
 
 	for (;;) {
 		//vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(200));
-		vTaskDelay(10);
+		vTaskDelay(100);
 		P1OUT ^= 0x40;
 		//xQueueSend( xQueue, &flip_led, 0U );
 		//flip_led = !flip_led;
@@ -89,20 +86,31 @@ TickType_t xLastWakeTime;
 
 static void prvRxTask( void *pvParameters )
 {
-BaseType_t received=0;
+//BaseType_t received=0;
 
 	for (;;) {
 		/* Wait until something arrives in the queue - this task will block
 		indefinitely provided INCLUDE_vTaskSuspend is set to 1 in
 		FreeRTOSConfig.h. */
 		//xQueueReceive( xQueue, &received, portMAX_DELAY );
-		vTaskDelay(10);
+		vTaskDelay(100);
 		P1OUT ^= 0x01;
 	}
 }
 
 /*-----------------------------------------------------------*/
+/* Structure that will hold the TCB of the task being created. */
+StaticTask_t xTaskTxBuffer;
+StaticTask_t xTaskRxBuffer;
 
+/* Buffer that the task being created will use as its stack.  Note this is
+   an array of StackType_t variables.  The size of StackType_t is dependent on
+   the RTOS port. */
+StackType_t xTxStack[ configMINIMAL_STACK_SIZE ];
+//#define RX_TASK
+#ifdef RX_TASK
+StackType_t xRxStack[ configMINIMAL_STACK_SIZE ];
+#endif
 /*
  * Start the demo application tasks - then start the real time scheduler.
  */
@@ -110,22 +118,24 @@ int main( void )
 {
 	/* Setup the hardware ready for the demo. */
 	prvSetupHardware();
-	flash_led_fast();
-
+#if 1
 	/* Create the standard demo application tasks. */
-	xTaskCreate(prvTxTask,
+	xTaskCreateStatic(prvTxTask,
 		    "",
 		    configMINIMAL_STACK_SIZE,
 		    NULL,
 		    mainLED_TASK_PRIORITY,
-		    NULL);
-#if 0
-	xTaskCreate(prvRxTask,
+		    xTxStack,
+		    &xTaskTxBuffer);
+#endif
+#ifdef RX_TASK
+	xTaskCreateStatic(prvRxTask,
 		    "",
 		    configMINIMAL_STACK_SIZE,
 		    NULL,
 		    mainLED_TASK_PRIORITY,
-		    NULL);
+		    xRxStack,
+		    &xTaskRxBuffer);
 #endif
 	/* Create the queue. */
 	//xQueue = xQueueCreate(mainQUEUE_LENGTH, sizeof(BaseType_t));
@@ -137,7 +147,7 @@ int main( void )
 
 	/* As the scheduler has been started the demo applications tasks will be
 	executing and we should never get here! */
-	//flash_led_fast();
+	flash_led_fast();
 	return 0;
 }
 /*-----------------------------------------------------------*/
@@ -150,19 +160,42 @@ static void prvSetupHardware( void )
 
 	/* Set LED pin P1.0 to output direction */
 	P1DIR |= 0x41;
-	P1OUT |= 0x1;
 }
 /*-----------------------------------------------------------*/
 
 void vApplicationIdleHook( void );
 void vApplicationIdleHook( void )
 {
-static short count;
-//BaseType_t received=0;
 	/* Simple put the CPU into lowpower mode. */
 	//_BIS_SR( LPM3_bits );
 	//xQueueReceive( xQueue, &received, portMAX_DELAY );
 
-	ulIdleLoops++;
+	//ulIdleLoops++;
+}
+/*-----------------------------------------------------------*/
+/* configSUPPORT_STATIC_ALLOCATION is set to 1, so the application must provide an
+implementation of vApplicationGetIdleTaskMemory() to provide the memory that is
+used by the Idle task. */
+void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer,
+                                    StackType_t **ppxIdleTaskStackBuffer,
+                                    uint32_t *pulIdleTaskStackSize )
+{
+/* If the buffers to be provided to the Idle task are declared inside this
+function then they must be declared static - otherwise they will be allocated on
+the stack and so not exists after this function exits. */
+static StaticTask_t xIdleTaskTCB;
+static StackType_t uxIdleTaskStack[ 16 ];
+
+    /* Pass out a pointer to the StaticTask_t structure in which the Idle task's
+    state will be stored. */
+    *ppxIdleTaskTCBBuffer = &xIdleTaskTCB;
+
+    /* Pass out the array that will be used as the Idle task's stack. */
+    *ppxIdleTaskStackBuffer = uxIdleTaskStack;
+
+    /* Pass out the size of the array pointed to by *ppxIdleTaskStackBuffer.
+    Note that, as the array is necessarily of type StackType_t,
+    configMINIMAL_STACK_SIZE is specified in words, not bytes. */
+    *pulIdleTaskStackSize = 16;
 }
 /*-----------------------------------------------------------*/
