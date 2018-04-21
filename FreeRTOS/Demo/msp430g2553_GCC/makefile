@@ -36,11 +36,12 @@ CC=$(CROSS_COMPILE)gcc
 OBJCOPY=$(CROSS_COMPILE)objcopy
 #DEBUG=-g
 DEBUG=
-OPT=-Os
+OPT=-Os -ffunction-sections -fdata-sections
+LDFLAGS ?= -Wl,-gc-sections -L$(MSPGCC_BSP430_PATH)
 WARNINGS=-Wall -Wshadow -Wpointer-arith -Wbad-function-cast -Wcast-align -Wsign-compare \
 		-Waggregate-return -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wunused
 
-CFLAGS=-mmcu=msp430g2553 $(OPT) $(DEBUG) -I. -I../../Source/include -I../Common/include -I$(MSPGCC_BSP430_PATH) -DGCC_MSP430 $(WARNINGS) -L$(MSPGCC_BSP430_PATH)
+CFLAGS=-mmcu=msp430g2553 $(OPT) $(DEBUG) -I. -I../../Source/include -I../Common/include -I$(MSPGCC_BSP430_PATH) -DGCC_MSP430 $(WARNINGS)
 
 #
 # Source files that can be built to THUMB mode.
@@ -49,9 +50,9 @@ SRC = \
 main.c \
 $(SOURCE_PATH)/tasks.c \
 $(SOURCE_PATH)/list.c \
+$(SOURCE_PATH)/queue.c \
 $(PORT_PATH)/port.c
 #$(SOURCE_PATH)/portable/MemMang/heap_1.c \
-$(SOURCE_PATH)/queue.c \
 
 #
 # Define all object files.
@@ -59,7 +60,7 @@ $(SOURCE_PATH)/queue.c \
 OBJ = $(SRC:.c=.o)
 
 a.out : $(OBJ) makefile
-	$(CC) $(OBJ) $(CFLAGS)
+	$(CC) $(OBJ) $(CFLAGS) $(LDFLAGS)
 
 $(OBJ) : %.o : %.c makefile
 	$(CC) -c $(CFLAGS) $< -o $@

@@ -32,7 +32,7 @@
 /* Scheduler includes. */
 #include "FreeRTOS.h"
 #include "task.h"
-//#include "queue.h"
+#include "queue.h"
 
 /* Demo application includes. */
 
@@ -51,7 +51,7 @@ static void prvSetupHardware( void );
 //static volatile unsigned long ulIdleLoops = 0UL;
 
 /* The queue used by both tasks. */
-//static QueueHandle_t xQueue = NULL;
+static QueueHandle_t xQueue = NULL;
 
 void flash_led_fast(void);
 void flash_led_fast(void)
@@ -70,31 +70,29 @@ int j;
 
 static void prvTxTask( void *pvParameters )
 {
-//BaseType_t flip_led = 0;
-//TickType_t xLastWakeTime;
+TickType_t xLastWakeTime;
+BaseType_t led_status;
 
-//	xLastWakeTime = xTaskGetTickCount();
+	xLastWakeTime = xTaskGetTickCount();
 
+	led_status = 0x40;
 	for (;;) {
-		//vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(200));
-		vTaskDelay(100);
-		P1OUT ^= 0x40;
-		//xQueueSend( xQueue, &flip_led, 0U );
-		//flip_led = !flip_led;
+		vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(100));
+		led_status ^= 0x41;
+		xQueueSend( xQueue, &led_status, 0U );
 	}
 }
 
 static void prvRxTask( void *pvParameters )
 {
-//BaseType_t received=0;
+BaseType_t received;
 
 	for (;;) {
 		/* Wait until something arrives in the queue - this task will block
 		indefinitely provided INCLUDE_vTaskSuspend is set to 1 in
 		FreeRTOSConfig.h. */
-		//xQueueReceive( xQueue, &received, portMAX_DELAY );
-		vTaskDelay(100);
-		P1OUT ^= 0x01;
+		xQueueReceive( xQueue, &received, portMAX_DELAY );
+		P1OUT = (unsigned char)received;
 	}
 }
 
@@ -107,10 +105,13 @@ StaticTask_t xTaskRxBuffer;
    an array of StackType_t variables.  The size of StackType_t is dependent on
    the RTOS port. */
 StackType_t xTxStack[ configMINIMAL_STACK_SIZE ];
-//#define RX_TASK
+#define RX_TASK
 #ifdef RX_TASK
 StackType_t xRxStack[ configMINIMAL_STACK_SIZE ];
 #endif
+/* The variable used to hold the queue's data structure. */
+static StaticQueue_t xStaticQueue;
+unsigned char ucQueueStorageArea[mainQUEUE_LENGTH * sizeof(BaseType_t)];
 /*
  * Start the demo application tasks - then start the real time scheduler.
  */
@@ -137,10 +138,13 @@ int main( void )
 		    xRxStack,
 		    &xTaskRxBuffer);
 #endif
-	/* Create the queue. */
-	//xQueue = xQueueCreate(mainQUEUE_LENGTH, sizeof(BaseType_t));
-//	if (!xQueue)
-//		return -1;
+	/* Create a static queue. */
+	xQueue = xQueueCreateStatic( mainQUEUE_LENGTH,
+                                 sizeof(BaseType_t),
+                                 ucQueueStorageArea,
+                                 &xStaticQueue );
+	if (!xQueue)
+		return -1;
 
 	/* Start the scheduler. */
 	vTaskStartScheduler();
@@ -167,10 +171,7 @@ void vApplicationIdleHook( void );
 void vApplicationIdleHook( void )
 {
 	/* Simple put the CPU into lowpower mode. */
-	//_BIS_SR( LPM3_bits );
-	//xQueueReceive( xQueue, &received, portMAX_DELAY );
-
-	//ulIdleLoops++;
+	_BIS_SR( LPM3_bits );
 }
 /*-----------------------------------------------------------*/
 /* configSUPPORT_STATIC_ALLOCATION is set to 1, so the application must provide an
@@ -184,7 +185,8 @@ void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer,
 function then they must be declared static - otherwise they will be allocated on
 the stack and so not exists after this function exits. */
 static StaticTask_t xIdleTaskTCB;
-static StackType_t uxIdleTaskStack[ 16 ];
+#define IDLE_TASK_STACK		32
+static StackType_t uxIdleTaskStack[ IDLE_TASK_STACK ];
 
     /* Pass out a pointer to the StaticTask_t structure in which the Idle task's
     state will be stored. */
@@ -196,6 +198,6 @@ static StackType_t uxIdleTaskStack[ 16 ];
     /* Pass out the size of the array pointed to by *ppxIdleTaskStackBuffer.
     Note that, as the array is necessarily of type StackType_t,
     configMINIMAL_STACK_SIZE is specified in words, not bytes. */
-    *pulIdleTaskStackSize = 16;
+    *pulIdleTaskStackSize = IDLE_TASK_STACK;
 }
 /*-----------------------------------------------------------*/
